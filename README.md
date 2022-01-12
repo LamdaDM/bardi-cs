@@ -1,12 +1,13 @@
 # About
-***
+
 Bardi is a general financial modelling library based on *mutators*, *accounts* and *assets*, which are defined as:
 - **Mutator**: A source of timed events, where each event changes the value of an asset.
 - **Asset**: A representation of a value, which either belongs to an account or is used by a mutator. 
 If a mutator uses an asset, that mutator may have dynamic behaviour.
 - **Account**: A collection of assets and their total value.
 
-###Example
+### Example
+
 ```c#
 var account = new Account();
 account.RegisterAssets(new List<Asset>
