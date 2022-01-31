@@ -117,7 +117,14 @@ public class Projection : IDisposable
                 
             variant.Mutate();
             
-            if (currentPos < lastPos || currentPos == intervalCount * intervalLen + intervalDelay)
+            if (i + 1 >= events.Count)
+                resultsPacket.IntervalPoints.Add( new ProjectionIntervalPoint(
+                    AccountCapture.FromAccounts(accounts),
+                    MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
+                    currentIntervalIdx
+                ));
+            else if (events[i].TimePos % intervalLen < currentPos 
+                || currentPos == intervalCount * intervalLen + intervalDelay)
             {
                 resultsPacket.IntervalPoints.Add( new ProjectionIntervalPoint(
                     AccountCapture.FromAccounts(accounts),
