@@ -9,14 +9,11 @@ public class Account
     public override string ToString()
     {
         var sb = new StringBuilder()
-            .Append("assets: {\n");
+            .Append("account[0]: {\n");
 
-        foreach (var asset in Assets)
-        {
-            sb.Append($"\n{asset.Idx} : {asset.Value},");
-        }
+        foreach (var asset in Assets) sb.Append($"asset[{asset.Idx}] : {asset.Value}\n");
 
-        return sb.Append("\n}")
+        return sb.Append("}")
             .ToString();
     }
 
