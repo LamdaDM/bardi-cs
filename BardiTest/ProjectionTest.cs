@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Bardi;
@@ -16,6 +17,8 @@ public class Tests
     private List<Account> _accounts;
     private List<Mutator> _mutators;
     private Asset _debtAsset;
+
+    private Random _rand;
     
     // START 50, END 69
     // 
@@ -53,6 +56,8 @@ public class Tests
             MutatorFactory.Create(1, _account.Assets[1], 2, 5, 50, 64, false, 0),
             MutatorFactory.Create(2, _account.Assets[2], -300, 4, 45, _debtAsset, true, 0),
         };
+
+        _rand = new Random();
     }
 
     private ProjectionResultsPacket ProjectUndisposed(out Projection projection)
@@ -60,13 +65,31 @@ public class Tests
         projection = new Projection();
         return projection.Project(_mutators, _accounts, 50, 19, 1);
     }
-    
+
+    [Test]
+    public void ProjectionResultsIntervalPointsCount()
+    {
+        for (int i = 0; i < 250; i++)
+        {
+            var intervalLength = _rand.Next(1, 100);
+            var intervalCount = _rand.Next(1, 100);
+
+            using var projection = new Projection();
+            var res = projection
+                .Project(_mutators, _accounts, 50, intervalLength, intervalCount);
+
+            Assert.IsTrue(intervalCount == res.IntervalPoints.Count);
+        }
+    }
+
     [Test]
     public void ProjectionResults()
     {
         var res = ProjectUndisposed(out var projection);
+        
         Assert.AreEqual(1, res.IntervalPoints.Count);
         Assert.AreEqual(12, res.EventMementos.Count);
+        
         var accountCapture = AccountCapture.FromAccount(_account);
         var expectedAssetCaptures = new List<AssetCapture>
         {
@@ -117,15 +140,17 @@ public class Tests
         var res = ProjectUndisposed(out var projection);
         projection.Dispose();
         
-        _mutators[0] = MutatorFactory.Create(0, _account.Assets[0], 200, 3, 48, true, 0);
+        _mutators[0] = MutatorFactory.Create(0, _account.Assets[0], 200, 3, 48);
         var timePos = _mutators[0].ReferentialInitialEvent(50);
 
         var memento = res.EventMementos.Find(memento => memento.TimePos == timePos);
 
-        using var projection1 = projection = new Projection();
-        res = projection.Project(_mutators, _accounts, 50, 19, 1, -memento.TimePos, memento);
+        using var projection1 = new Projection();
+        res = projection1.Project(_mutators, _accounts, 50, 19, 1, -memento.TimePos, memento);
 
-        var standardTestTc = res.IntervalPoints[0].MutatorCaptures[0].TotalChange;
+        var standardTestTc = res.IntervalPoints[0]
+            .MutatorCaptures[0]
+            .TotalChange;
         Assert.AreEqual(1400, standardTestTc);
     }
     

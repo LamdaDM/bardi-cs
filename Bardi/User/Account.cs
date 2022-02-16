@@ -1,10 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace Bardi.User;
 
-public class Account
+public class Account 
 {
     public override string ToString()
     {
