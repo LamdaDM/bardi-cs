@@ -97,12 +97,14 @@ public class Projection : IDisposable
                 lastPos = currentPos;
             }
         }
-
+        
         long currentIntervalIdx = 0;
+        var intervalLenDiv = 1 / (float)intervalLen;
         for (var i = counter; i < events.Count; i++)
         {
-            var (timePos, variant) = events[i];
-            var currentPos = timePos % intervalLen;
+            var (currentPos, variant) = events[i];
+            var currentPosInterval = currentPos % intervalLen;
+            var lastPosInterval = lastPos % intervalLen;
             // This variable is insignificant and is only to represent current iteration's position in event line.
 
             if (currentPos != lastPos)
@@ -112,31 +114,63 @@ public class Projection : IDisposable
                 // TODO: IEnumerable boxing problem marker
                 var localDebtCaptures = MutatorCapture.ToCollection(mutators).ToList();
                 resultsPacket.EventMementos
-                    .Add(new EventMemento(timePos, localAccountCaptures, localDebtCaptures));    
+                    .Add(new EventMemento(currentPos, localAccountCaptures, localDebtCaptures));    
             } 
-                
+            
             variant.Mutate();
+
+            var isFinalEventAndUnstored = 1 + 1 == events.Count && resultsPacket.IntervalPoints.Count != intervalCount;
+            var isNewIntervalAndUnstored = currentPosInterval < lastPosInterval
+                                           && resultsPacket.IntervalPoints.Count < currentPos * intervalLenDiv;
+            var isIntervalSkipped = currentPos - lastPos >= intervalLen;
             
-            if (i + 1 >= events.Count)
-                resultsPacket.IntervalPoints.Add( new ProjectionIntervalPoint(
-                    AccountCapture.FromAccounts(accounts),
-                    MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
-                    currentIntervalIdx
-                ));
-            else if (events[i].TimePos % intervalLen < currentPos 
-                || currentPos == intervalCount * intervalLen + intervalDelay)
+            if (isFinalEventAndUnstored || isNewIntervalAndUnstored || isIntervalSkipped)
             {
-                resultsPacket.IntervalPoints.Add( new ProjectionIntervalPoint(
-                    AccountCapture.FromAccounts(accounts),
-                    MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
-                    currentIntervalIdx
-                ));
+                var isLastIntervalUnstored = lastPos * intervalLenDiv > resultsPacket.IntervalPoints.Count;
+                var areMultipleIntervalsSkipped = isIntervalSkipped && isLastIntervalUnstored;
+                
+                if (areMultipleIntervalsSkipped)
+                {
+                    var fits = (long)((currentPos - lastPos) * intervalLenDiv) + (intervalLen == 1 ? 0 : 1);
+                    
+                    for (int a = 0; a < fits; a++)
+                    {
+                        resultsPacket.IntervalPoints.Add(new ProjectionIntervalPoint(
+                            AccountCapture.FromAccounts(accounts),
+                            MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
+                            currentIntervalIdx
+                        ));
+                        currentIntervalIdx++;
+                    }
+                }
+                else
+                {
+                    resultsPacket.IntervalPoints.Add(new ProjectionIntervalPoint(
+                        AccountCapture.FromAccounts(accounts),
+                        MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
+                        currentIntervalIdx
+                    ));
+                    currentIntervalIdx++;   
+                }
             }
-            
-            currentIntervalIdx++;
             lastPos = currentPos;
         }
-
+        
+        
+        if (lastPos < intervalLen * intervalCount - intervalLen || intervalCount != resultsPacket.IntervalPoints.Count)
+        {
+            while (resultsPacket.IntervalPoints.Count < intervalCount)
+            {
+                resultsPacket.IntervalPoints.Add(new ProjectionIntervalPoint(
+                    AccountCapture.FromAccounts(accounts),
+                    MutatorCapture.ToCollection(mutators).ToList(), // TODO: IEnumerable boxing problem marker
+                    currentIntervalIdx
+                ));
+                currentIntervalIdx++;
+            }
+            
+        }
+            
         return resultsPacket;
     }
 
